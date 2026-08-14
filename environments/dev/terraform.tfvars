@@ -18,7 +18,7 @@ aws_profile = "terraform"
 project_name   = "aws-tf-infra"
 owner          = "shravani"
 cost_center    = "learning"
-repository_url = "https://github.com/CHANGE-ME/aws-terraform-multi-env-infra"
+repository_url = "https://github.com/aryarautt/aws-terraform-multi-env-infra"
 
 # ---- Network ----------------------------------------------------------------
 # Each environment gets a DIFFERENT CIDR. If these overlapped, the VPCs

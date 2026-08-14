@@ -36,7 +36,7 @@ aws_profile = "terraform"
 project_name   = "aws-tf-infra"
 owner          = "platform-team"
 cost_center    = "production"
-repository_url = "https://github.com/CHANGE-ME/aws-terraform-multi-env-infra"
+repository_url = "https://github.com/aryarautt/aws-terraform-multi-env-infra"
 
 # ---- Network ----------------------------------------------------------------
 vpc_cidr = "10.2.0.0/16"
@@ -123,7 +123,7 @@ db_deletion_protection = true
 #
 # NOTE: the snapshot persists after destroy and continues to incur storage
 # charges. Delete it deliberately once you are certain it is not needed.
-db_skip_final_snapshot = false
+db_skip_final_snapshot   = false
 db_final_snapshot_suffix = "v1"
 
 db_performance_insights = true

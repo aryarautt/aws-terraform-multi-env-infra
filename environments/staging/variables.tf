@@ -51,7 +51,7 @@ variable "cost_center" {
 variable "repository_url" {
   description = "Repository URL, tagged onto resources so anyone in the console can find the code that created them."
   type        = string
-  default     = "https://github.com/CHANGE-ME/aws-terraform-multi-env-infra"
+  default     = "https://github.com/aryarautt/aws-terraform-multi-env-infra"
 }
 
 # ---- Network ----------------------------------------------------------------

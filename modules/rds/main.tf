@@ -115,7 +115,7 @@ resource "aws_db_instance" "this" {
 
   # Allow AWS to apply minor version patches during the maintenance window.
   # Major upgrades stay manual - they can contain breaking changes.
-  auto_minor_version_upgrade = true
+  auto_minor_version_upgrade  = true
   allow_major_version_upgrade = false
 
   # ---- STORAGE ------------------------------------------------------------

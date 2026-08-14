@@ -311,6 +311,31 @@ resource "aws_cloudwatch_metric_alarm" "rds_connections" {
 # place to look during an incident instead of clicking between six consoles.
 ###############################################################################
 
+
+# WHY THIS IS BUILT WITH concat() AND for EXPRESSIONS
+# ---------------------------------------------------
+# The obvious way to make a widget conditional does NOT work in HCL:
+#
+#     widgets = concat(
+#       var.alb_arn_suffix != null ? [widget_a, widget_b] : [],   # ERROR
+#     )
+#
+# HCL rejects it with "Inconsistent conditional result types". A tuple's
+# LENGTH is part of its type, so tuple-of-2 and tuple-of-0 are different
+# types, and a conditional requires both branches to share one type.
+#
+# The working pattern is a `for` expression over a list of length 0 or 1:
+#
+#     [for _ in (cond ? [1] : []) : { ... }]
+#
+# This is the same idea as `count = cond ? 1 : 0`, applied to a value.
+
+locals {
+  alb_widget = var.alb_arn_suffix != null ? [1] : []
+  asg_widget = var.autoscaling_group_name != null ? [1] : []
+  db_widget  = var.db_instance_id != null ? [1] : []
+}
+
 resource "aws_cloudwatch_dashboard" "this" {
   count = var.create_dashboard ? 1 : 0
 
@@ -318,89 +343,84 @@ resource "aws_cloudwatch_dashboard" "this" {
 
   dashboard_body = jsonencode({
     widgets = concat(
-      var.alb_arn_suffix != null ? [
-        {
-          type   = "metric"
-          x      = 0
-          y      = 0
-          width  = 12
-          height = 6
-          properties = {
-            title  = "ALB - requests and errors"
-            region = var.aws_region
-            view   = "timeSeries"
-            period = 300
-            stat   = "Sum"
-            metrics = [
-              ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix],
-              [".", "HTTPCode_Target_2XX_Count", ".", "."],
-              [".", "HTTPCode_Target_4XX_Count", ".", "."],
-              [".", "HTTPCode_Target_5XX_Count", ".", "."],
-              [".", "HTTPCode_ELB_5XX_Count", ".", "."],
-            ]
-          }
-        },
-        {
-          type   = "metric"
-          x      = 12
-          y      = 0
-          width  = 12
-          height = 6
-          properties = {
-            title  = "ALB - response time"
-            region = var.aws_region
-            view   = "timeSeries"
-            period = 300
-            metrics = [
-              ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, { stat = "p50" }],
-              ["...", { stat = "p95" }],
-              ["...", { stat = "p99" }],
-            ]
-          }
-        },
-      ] : [],
+      [for _ in local.alb_widget : {
+        type   = "metric"
+        x      = 0
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title  = "ALB - requests and errors"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 300
+          stat   = "Sum"
+          metrics = [
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.alb_arn_suffix],
+            [".", "HTTPCode_Target_2XX_Count", ".", "."],
+            [".", "HTTPCode_Target_4XX_Count", ".", "."],
+            [".", "HTTPCode_Target_5XX_Count", ".", "."],
+            [".", "HTTPCode_ELB_5XX_Count", ".", "."],
+          ]
+        }
+      }],
 
-      var.autoscaling_group_name != null ? [
-        {
-          type   = "metric"
-          x      = 0
-          y      = 6
-          width  = 12
-          height = 6
-          properties = {
-            title  = "EC2 - CPU and capacity"
-            region = var.aws_region
-            view   = "timeSeries"
-            period = 300
-            metrics = [
-              ["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", var.autoscaling_group_name, { stat = "Average" }],
-              ["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.autoscaling_group_name, { stat = "Average" }],
-              [".", "GroupDesiredCapacity", ".", ".", { stat = "Average" }],
-            ]
-          }
-        },
-      ] : [],
+      [for _ in local.alb_widget : {
+        type   = "metric"
+        x      = 12
+        y      = 0
+        width  = 12
+        height = 6
+        properties = {
+          title  = "ALB - response time"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 300
+          metrics = [
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.alb_arn_suffix, { stat = "p50" }],
+            ["...", { stat = "p95" }],
+            ["...", { stat = "p99" }],
+          ]
+        }
+      }],
 
-      var.db_instance_id != null ? [
-        {
-          type   = "metric"
-          x      = 12
-          y      = 6
-          width  = 12
-          height = 6
-          properties = {
-            title  = "RDS - CPU, connections, storage"
-            region = var.aws_region
-            view   = "timeSeries"
-            period = 300
-            metrics = [
-              ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.db_instance_id, { stat = "Average" }],
-              [".", "DatabaseConnections", ".", ".", { stat = "Average" }],
-              [".", "FreeStorageSpace", ".", ".", { stat = "Average", yAxis = "right" }],
-            ]
-          }
-        },
-      ] : [],
+      [for _ in local.asg_widget : {
+        type   = "metric"
+        x      = 0
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title  = "EC2 - CPU and capacity"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 300
+          metrics = [
+            ["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", var.autoscaling_group_name, { stat = "Average" }],
+            ["AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", var.autoscaling_group_name, { stat = "Average" }],
+            [".", "GroupDesiredCapacity", ".", ".", { stat = "Average" }],
+          ]
+        }
+      }],
+
+      [for _ in local.db_widget : {
+        type   = "metric"
+        x      = 12
+        y      = 6
+        width  = 12
+        height = 6
+        properties = {
+          title  = "RDS - CPU, connections, storage"
+          region = var.aws_region
+          view   = "timeSeries"
+          period = 300
+          metrics = [
+            ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.db_instance_id, { stat = "Average" }],
+            [".", "DatabaseConnections", ".", ".", { stat = "Average" }],
+            [".", "FreeStorageSpace", ".", ".", { stat = "Average", yAxis = "right" }],
+          ]
+        }
+      }],
     )
   })
 }

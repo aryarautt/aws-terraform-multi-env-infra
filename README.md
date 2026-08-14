@@ -359,7 +359,7 @@ Terraform is older than 1.10. Check with `terraform -version` and upgrade. Do **
 <details>
 <summary><b>Error: NoSuchBucket / state bucket not found</b></summary>
 
-The bootstrap step has not run, or `backend.tf` still contains the `CHANGE-ME` placeholder. Run `cd bootstrap && terraform apply`, then copy `terraform output state_bucket_name` into each environment's `backend.tf`.
+The bootstrap step has not run, or `backend.tf` still contains the `aryarautt` placeholder. Run `cd bootstrap && terraform apply`, then copy `terraform output state_bucket_name` into each environment's `backend.tf`.
 </details>
 
 <details>

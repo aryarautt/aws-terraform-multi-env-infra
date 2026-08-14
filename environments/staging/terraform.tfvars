@@ -20,7 +20,7 @@ aws_profile = "terraform"
 project_name   = "aws-tf-infra"
 owner          = "shravani"
 cost_center    = "engineering"
-repository_url = "https://github.com/CHANGE-ME/aws-terraform-multi-env-infra"
+repository_url = "https://github.com/aryarautt/aws-terraform-multi-env-infra"
 
 # ---- Network ----------------------------------------------------------------
 # Different CIDR from dev and production - no overlap, so these VPCs could
