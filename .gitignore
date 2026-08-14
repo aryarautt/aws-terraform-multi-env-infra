@@ -1,0 +1,43 @@
+# ---- Terraform ----
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+*.tfplan
+*.tfplan.*
+tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Variable files that may contain secrets
+*.auto.tfvars
+secrets.tfvars
+*.secret.tfvars
+
+# Environment tfvars ARE committed - they contain no secrets
+!environments/dev/terraform.tfvars
+!environments/staging/terraform.tfvars
+!environments/production/terraform.tfvars
+
+# NOTE: .terraform.lock.hcl is intentionally NOT ignored.
+# It pins exact provider versions and MUST be committed.
+
+# ---- AWS ----
+.aws/
+credentials
+*.pem
+*.ppk
+
+# ---- Editors / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*~

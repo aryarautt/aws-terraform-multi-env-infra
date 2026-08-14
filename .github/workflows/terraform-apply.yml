@@ -1,0 +1,150 @@
+###############################################################################
+# TERRAFORM APPLY - runs after a merge to main
+#
+# PROMOTION MODEL
+#   dev         applied automatically on merge
+#   staging     applied automatically, only after dev succeeds
+#   production  requires MANUAL APPROVAL from a human
+#
+# The production gate is enforced by a GitHub Environment protection rule,
+# not by anything in this file. Configure it at:
+#   Settings -> Environments -> New environment -> "production"
+#     -> Required reviewers -> add yourself
+#
+# That is the important detail: the approval requirement lives in
+# repository settings, so a developer cannot bypass it by editing the
+# workflow in their pull request.
+###############################################################################
+
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "modules/**"
+      - "environments/**"
+  # Allows a deliberate manual run of a single environment.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to apply"
+        required: true
+        type: choice
+        options: [dev, staging, production]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VERSION: "1.10.0"
+  AWS_REGION: ap-south-1
+
+# Never run two applies against the same state concurrently.
+# Terraform's state lock would block the second one anyway, but failing
+# here is cleaner than failing mid-apply.
+concurrency:
+  group: terraform-apply-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dev:
+    name: Apply dev
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || inputs.environment == 'dev'
+    environment: dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gh-apply-dev-${{ github.run_id }}
+
+      - name: terraform init
+        run: terraform -chdir=environments/dev init -input=false
+
+      # Plan and apply as separate steps, applying the SAVED plan file.
+      # A bare `terraform apply -auto-approve` re-plans, so what gets
+      # applied may differ from what was reviewed.
+      - name: terraform plan
+        run: terraform -chdir=environments/dev plan -input=false -out=tfplan
+
+      - name: terraform apply
+        run: terraform -chdir=environments/dev apply -input=false tfplan
+
+      - name: Outputs
+        run: terraform -chdir=environments/dev output
+
+  staging:
+    name: Apply staging
+    runs-on: ubuntu-latest
+    needs: dev
+    if: github.event_name == 'push' || inputs.environment == 'staging'
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gh-apply-staging-${{ github.run_id }}
+
+      - name: terraform init
+        run: terraform -chdir=environments/staging init -input=false
+
+      - name: terraform plan
+        run: terraform -chdir=environments/staging plan -input=false -out=tfplan
+
+      - name: terraform apply
+        run: terraform -chdir=environments/staging apply -input=false tfplan
+
+  production:
+    name: Apply production
+    runs-on: ubuntu-latest
+    needs: staging
+    if: github.event_name == 'push' || inputs.environment == 'production'
+
+    # THE APPROVAL GATE.
+    # This job pauses until a required reviewer approves it in the GitHub
+    # UI. Without the protection rule configured in repository settings,
+    # this line has no effect - the rule is what enforces it.
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gh-apply-prod-${{ github.run_id }}
+
+      - name: terraform init
+        run: terraform -chdir=environments/production init -input=false
+
+      - name: terraform plan
+        run: terraform -chdir=environments/production plan -input=false -out=tfplan
+
+      - name: terraform apply
+        run: terraform -chdir=environments/production apply -input=false tfplan
+
+      - name: Outputs
+        run: terraform -chdir=environments/production output
